@@ -1,0 +1,135 @@
+1. 파일변환 작업 코드 
+ - [account_id]부분을 본인의 어카운트 아이드로 교체한 후 붙여넣기 합니다.
+
+
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+
+## @params: [JOB_NAME]
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+## @type: DataSource
+## @args: [database = "raw", table_name = "orders", transformation_ctx = "datasource0"]
+## @return: datasource0
+## @inputs: []
+datasource0 = glueContext.create_dynamic_frame.from_catalog(database = "raw", table_name = "orders", transformation_ctx = "datasource0")
+## @type: Filter
+## @args: [f = lambda x: x["quantity"] > 0, transformation_ctx = "fitered_ctx"]
+## @return: filtered
+## @inputs: [frame=datasource0]
+filtered = Filter.apply(frame = datasource0, f = lambda x: x["quantity"] > 0, transformation_ctx = "fitered_ctx")
+## @type: ApplyMapping
+## @args: [mapping = [("year", "long", "year", "long"), ("product line", "string", "product line", "string"), ("product type", "string", "product type", "string"), ("product", "string", "product", "string"), ("order method type", "string", "order method type", "string"), ("retailer country", "string", "retailer country", "string"), ("revenue", "double", "revenue", "double"), ("planned revenue", "double", "planned revenue", "double"), ("product cost", "double", "product cost", "double"), ("quantity", "long", "quantity", "long"), ("unit cost", "double", "unit cost", "double"), ("unit price", "double", "unit price", "double"), ("gross profit", "double", "gross profit", "double"), ("unit sale price", "double", "unit sale price", "double")], transformation_ctx = "applymapping1"]
+## @return: applymapping1
+## @inputs: [frame = filtered]
+applymapping1 = ApplyMapping.apply(frame = filtered, mappings = [("year", "long", "year", "long"), ("product line", "string", "product line", "string"), ("product type", "string", "product type", "string"), ("product", "string", "product", "string"), ("order method type", "string", "order method type", "string"), ("retailer country", "string", "retailer country", "string"), ("revenue", "double", "revenue", "double"), ("planned revenue", "double", "planned revenue", "double"), ("product cost", "double", "product cost", "double"), ("quantity", "long", "quantity", "long"), ("unit cost", "double", "unit cost", "double"), ("unit price", "double", "unit price", "double"), ("gross profit", "double", "gross profit", "double"), ("unit sale price", "double", "unit sale price", "double")], transformation_ctx = "applymapping1")
+## @type: ResolveChoice
+## @args: [choice = "make_struct", transformation_ctx = "resolvechoice2"]
+## @return: resolvechoice2
+## @inputs: [frame = applymapping1]
+resolvechoice2 = ResolveChoice.apply(frame = applymapping1, choice = "make_struct", transformation_ctx = "resolvechoice2")
+## @type: DropNullFields
+## @args: [transformation_ctx = "dropnullfields3"]
+## @return: dropnullfields3
+## @inputs: [frame = resolvechoice2]
+dropnullfields3 = DropNullFields.apply(frame = resolvechoice2, transformation_ctx = "dropnullfields3")
+## @type: DataSink
+## @args: [connection_type = "s3", connection_options = {"path": "s3://dplab-transformed-[account]/orders"},  format = "parquet", transformation_ctx = "datasink4"]
+## @return: datasink4
+## @inputs: [frame = dropnullfields3]
+datasink4 = glueContext.write_dynamic_frame.from_options(frame = dropnullfields3, connection_type = "s3", connection_options = {"path": "s3://dplab-transformed-[account_id]/orders"}, format = "parquet", transformation_ctx = "datasink4")
+job.commit()
+
+
+
+
+2. Join 작업 코드 
+ - [account_id]부분을 본인의 어카운트 아이드로 교체한 후 붙여넣기 합니다.
+
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+
+## @params: [JOB_NAME]
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+## @type: DataSource
+## @args: [database = "transformed", table_name = "orders", transformation_ctx = "datasource0"]
+## @return: datasource0
+## @inputs: []
+datasource0 = glueContext.create_dynamic_frame.from_catalog(database = "transformed", table_name = "orders", transformation_ctx = "datasource0")
+## @type: DataSource
+## @args: [database = "transformed", table_name = "cities", redshift_tmp_dir = args["TempDir"], transformation_ctx = "datasource1"]
+## @return: datasource1
+## @inputs: []
+datasource1 = glueContext.create_dynamic_frame.from_catalog(database = "transformed", table_name = "cities", redshift_tmp_dir = args["TempDir"], transformation_ctx = "datasource1")
+## @type: Join
+## @args: [keys1 = ['retailer_country'], keys2 = ['country']]
+## @return: joined
+## @inputs: [frame1 = datasource0, frame2 = datasource1]
+joined = Join.apply(frame1 = datasource0, frame2 = datasource1, keys1 = ['retailer_country'], keys2 = ['country'], transformation_ctx = "joined")
+## @type: ApplyMapping
+## @args: [mapping = [("year", "long", "year", "long"), ("product_line", "string", "product_line", "string"), ("product_type", "string", "product_type", "string"), ("product", "string", "product", "string"), ("order_method_type", "string", "order_method_type", "string"), ("retailer_country", "string", "retailer_country", "string"), ("revenue", "double", "revenue", "double"), ("planned_revenue", "double", "planned_revenue", "double"), ("product_cost", "double", "product_cost", "double"), ("quantity", "long", "quantity", "long"), ("unit_cost", "double", "unit_cost", "double"), ("unit_price", "double", "unit_price", "double"), ("gross_profit", "double", "gross_profit", "double"), ("unit_sale_price", "double", "unit_sale_price", "double"), ("retail_id", "long", "retail_id", "long"), ("country", "string", "country", "string"), ("latitude", "string", "latitude", "string"), ("longitude", "string", "longitude", "string"), ("population", "long", "population", "long"), ("last_updated", "string", "last_updated", "string")], transformation_ctx = "applymapping1"]
+## @return: applymapping1
+## @inputs: [frame = joined]
+applymapping1 = ApplyMapping.apply(frame = joined, mappings = [("year", "long", "year", "long"), ("product_line", "string", "product_line", "string"), ("product_type", "string", "product_type", "string"), ("product", "string", "product", "string"), ("order_method_type", "string", "order_method_type", "string"), ("retailer_country", "string", "retailer_country", "string"), ("revenue", "double", "revenue", "double"), ("planned_revenue", "double", "planned_revenue", "double"), ("product_cost", "double", "product_cost", "double"), ("quantity", "long", "quantity", "long"), ("unit_cost", "double", "unit_cost", "double"), ("unit_price", "double", "unit_price", "double"), ("gross_profit", "double", "gross_profit", "double"), ("unit_sale_price", "double", "unit_sale_price", "double"), ("retail_id", "long", "retail_id", "long"), ("country", "string", "country", "string"), ("latitude", "string", "latitude", "string"), ("longitude", "string", "longitude", "string"), ("population", "long", "population", "long"), ("last_updated", "string", "last_updated", "string")], transformation_ctx = "applymapping1")
+## @type: ResolveChoice
+## @args: [choice = "make_struct", transformation_ctx = "resolvechoice2"]
+## @return: resolvechoice2
+## @inputs: [frame = applymapping1]
+resolvechoice2 = ResolveChoice.apply(frame = applymapping1, choice = "make_struct", transformation_ctx = "resolvechoice2")
+## @type: DropNullFields
+## @args: [transformation_ctx = "dropnullfields3"]
+## @return: dropnullfields3
+## @inputs: [frame = resolvechoice2]
+dropnullfields3 = DropNullFields.apply(frame = resolvechoice2, transformation_ctx = "dropnullfields3")
+## @type: DataSink
+## @args: [connection_type = "s3", connection_options = {"path": "s3://dplab-enriched-[account_id]/orders_w_city"},, format = "parquet", transformation_ctx = "datasink4"]
+## @return: datasink4
+## @inputs: [frame = dropnullfields3]
+datasink4 = glueContext.write_dynamic_frame.from_options(frame = dropnullfields3, connection_type = "s3", connection_options = {"path": "s3://dplab-enriched-[account_id]/orders_w_city"}, format = "parquet", transformation_ctx = "datasink4")
+job.commit()
+
+
+
+
+3. QuickSight latitude_n 컬럼 생성 
+
+/*latitude*/
+ifelse(
+    right(latitude, 1) = "N",
+    (parseInt(split(latitude, '°', 1)) +
+        parseDecimal(substring(latitude, (locate(latitude, '°',3)+1),  2) ) / 60) ,
+    (parseInt(split(latitude, '°', 1)) +
+        parseDecimal(substring(latitude, (locate(latitude, '°',3)+1),  2) ) / 60) * -1
+)
+
+
+
+4. QuickSight longitude_n 컬럼 생성 (8-21 단계)
+
+/*longitude*/
+ifelse(
+    right(longitude, 1) = "E",
+    (parseInt(split(longitude, '°', 1)) +
+        parseDecimal(substring(longitude, (locate(longitude, '°',3)+1),  2) ) / 60) ,
+    (parseInt(split(longitude, '°', 1)) +
+        parseDecimal(substring(longitude, (locate(longitude, '°',3)+1),  2) ) / 60) * -1
+)
